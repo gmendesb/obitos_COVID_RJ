@@ -1,0 +1,540 @@
+---
+title: "Nota sobre mortalidade pela COVID-19 por bairros no Rio de Janeiro"
+author: "Gabriel Borges"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+header-includes:
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+fontsize: 12pt
+linkcolor: blue
+geometry: margin=1in
+---
+
+# Introdução
+
+O objetivo desta nota é calcular e discutir brevemente indicadores de mortalidade por COVID-19 para os bairros do Rio de Janeiro.
+Os números de morte por COVID-19 por bairro têm sido utilizados para caracterizar a pandemia em diferentes regiões da cidade. Discute-se, por exemplo, as razões pelas quais Copacabana e Campo Grande estariam entre os bairros com mais mortes atribuídas à COVID-19. Ver, por exemplo, reportagens publicadas [aqui](https://oglobo.globo.com/rio/apesar-da-alta-de-casos-mortes-copacabana-campo-grande-parecem-ignorar-realidade-24419763) e [aqui](https://noticias.uol.com.br/saude/ultimas-noticias/redacao/2020/05/10/perto-do-lockdown-copacabana-se-torna-o-bairro-do-rj-com-mais-mortes.htm).
+
+Por que bairros como Copacabana e Campo Grande são os que apresentam os mais altos números de óbito por COVID-19? A mortalidade nesses bairros seria realmente mais alta que em outras regiões do município? Ou seria porque estes são bairros mais populosos? Ou ainda porque têm uma maior concentração de idosos em suas populações? As análises nessa nota tentam responder tais perguntas.
+
+# Dados
+
+## Base de Dados sobre casos de COVID-19
+
+O [Painel Rio COVID-19](https://experience.arcgis.com/experience/38efc69787a346959c931568bd9e2cc4) apresenta o resumo do número de casos confirmados, óbitos, entre outras informações, bem como a opção de download dos microdados[^1]. Esta é uma importante iniciativa, já que permite o estudo da epidemia via informações bastante detalhadas, e espera-se que seja mantida e aprimorada.
+
+[^1]: [O número de óbitos deixou de aparecer no painel na dia 18/05/2020](https://oglobo.globo.com/rio/prefeitura-do-rio-tira-do-ar-dados-abertos-sobre-mortos-pela-covid-19-no-municipio-24434182), sob a justificativa que que está havendo uma [mudança metodológica](https://valor.globo.com/brasil/noticia/2020/05/25/rio-muda-metodologia-de-divulgacao-de-mortes-por-covid-19.ghtml) na classificação dos óbitos. Ainda assim, foi possível extrair tais informações via microdados até o dia 24/05/2020.
+
+Os microdados contêm dados individuais dos casos confirmados de COVID-19 no município do Rio de Janeiro, com informações relevantes, como bairro de residência ou estadia do paciente, seu sexo, faixa etária e evolução do caso (ativo, óbito ou recuperado).
+
+Esta nota avalia a mortalidade por COVID-19 e, portanto, utiliza os casos que evoluíram para óbito.
+
+Com o objetivo de permitir a reprodutibilidade dos resultados, todos os códigos utilizados para produzir os resultados desta nota estão também disponíveis. Espera-se que isso também ajude outros pesquisadores que pretendam usar as mesmas bases de dados.
+
+\newpage
+\blandscape
+
+A tabela abaixo ilustra os dados disponíveis mostrando as primeiras linhas da tabela de microdados.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+options(scipen=999)
+# carrega pacotes utilizados
+list.of.packages <- c("tidyverse", "gt", "geobr", "ggsflabel", "knitr", "kableExtra", "sidrar", "mipfp")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+invisible(lapply(list.of.packages, library, character.only = TRUE))
+
+# lê base atualizada do site Painel Rio COVID-19
+# dados_COVID_Rio <- read.csv2("http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",encoding = "latin1", sep = ";", stringsAsFactors = F)
+dados_COVID_Rio <- read_csv2(
+  file = "http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",local = locale(encoding = "latin1"),
+  col_types = cols(dt_notific = col_date('%d/%m/%Y'),
+                   dt_inicio_sintomas = col_date('%d/%m/%Y')))
+
+# transforma nome dos bairros para ser consistente com base de pessoas
+dados_COVID_Rio <- dados_COVID_Rio %>% mutate(
+  bairro = stringi::stri_trans_general(toupper(bairro_resid__estadia), "Latin-ASCII"))
+
+#mostra as primeira linhas da tabela
+dados_COVID_Rio %>% head(20) %>% kableExtra::kable() %>% 
+    kable_styling(latex_options="scale_down")
+
+```
+\elandscape
+
+\newpage
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#filtra óbitos
+obitos_COVID_Rio <- dados_COVID_Rio %>% filter(evolução=="óbito") %>% 
+  # recodifica bairros para ser comparáveis com o Censo 2010
+  mutate(bairro = case_when(
+    bairro == "GERICINO" ~ "BANGU",
+    bairro == "VILA KENNEDY" ~ "BANGU",
+    bairro == "VASCO DA GAMA" ~ "SAO CRISTOVAO",
+    bairro == "FREGUESIA-JPA" ~ "FREGUESIA (JACAREPAGUA)",
+    bairro == "FREGUESIA-ILHA" ~ "FREGUESIA (ILHA DO GOVERNADOR)",
+    bairro == "LAPA" ~ "CENTRO",
+    bairro == "CAVALCANTE" ~ "CAVALCANTI",
+    bairro == "RICARDO ALBUQUERQUE" ~ "RICARDO DE ALBUQUERQUE",
+    TRUE ~ bairro)) %>% 
+  group_by(bairro, faixa_etária, sexo) %>% 
+  summarise(obitos = n()) %>% ungroup(bairro)
+
+#calcula total de óbitos por bairro
+total_obitos <- obitos_COVID_Rio %>% group_by(bairro) %>% summarise(obitos = sum(obitos)) %>% arrange(-obitos)
+
+```
+
+A tabela seguinte mostra o total de óbitos por bairro, conforme definido na base de dados do Painel Rio COVID-19[^2]. Os bairros com maior número de óbitos em `r dados_COVID_Rio %>% select(Data_atualização) %>% filter(row_number()==1)` são `r total_obitos[1,1]`, `r total_obitos[2,1]` e `r total_obitos[3,1]`, com  `r total_obitos[1,2]`, `r total_obitos[2,2]`, `r total_obitos[3,2]` óbitos, respectivamente.
+
+[^2]: A fim de manter a comparabilidade com o Censo 2010 e sua malha territorial, os dados de óbitos foram compatibilizados para fornecer informações conforme a base deste ano. Desta forma, Gericinó e Vila Kennedy, por exemplo, estão computados juntamente com os óbitos de Bangu.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+#mostra total de óbitos por bairro
+total_obitos %>% filter(bairro != "INDEFINIDO") %>% head(30) %>% gt()
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# tabula óbitos por sexo e idade
+obitos_sexo_idade <- obitos_COVID_Rio %>% group_by(bairro, sexo, faixa_etária) %>% summarise(obitos = sum(obitos))
+```
+
+## Dados sobre população
+
+Os dados mais recentes sobre população com o nível de desagregação para bairros são oriundos do Censo 2010. Tais informações estão 10 anos defasadas, portanto. O próximo Censo, que seria realizado em 2020, [foi adiado](https://agenciadenoticias.ibge.gov.br/agencia-noticias/2012-agencia-de-noticias/noticias/27160-censo-e-adiado-para-2021-coleta-presencial-de-pesquisas-e-suspensa) em função das orientações do Ministério da Saúde relacionadas ao quadro de emergência de saúde pública causado pela COVID-19. O Censo 2010 é a fonte de dados mais recente, mesmo para algumas informações para o total do município, como a distribuição da população por sexo e idade.
+
+Os dados dos Censos 2000 e 2010 por bairro podem ser baixados do [SIDRA](https://sidra.ibge.gov.br/). Para esta nota, utilizou-se o pacote **sidrar**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# lê base de populações dos Censos 2000 e 2010 do SIDRA usando o pacote sidrar
+pop_bairro_Rio_SIDRA <- get_sidra(x = 1552,
+          period = c("2000", "2010"),
+          classific = c("c2", "c287"),
+          category = list(c(92956, 92957), 
+                          c(93070,93084,93085,93086,93087,93088,93089,
+                            93090,93091,93092,93093,93094,93095,93096,
+                            93097,93098,93099,93100,6653)),
+          variable = "93",
+          geo = "Neighborhood",
+          geo.filter = list("City" = 3304557),
+          header = FALSE,
+          format = 3)
+
+# agrupa idade 80+ e bairros Gericinó e Vasco da Gama, que foram criados entre 2000 e 2010
+pop_bairro_Rio <- pop_bairro_Rio_SIDRA %>% 
+  mutate(
+    bairro = str_replace(string = D1N,
+                         pattern =  " - Rio de Janeiro - RJ", 
+                         replacement =  ""),
+    bairro = case_when(
+      bairro == "Gericinó" ~ "Bangu",
+      bairro == "Vasco da Gama" ~ "São Cristóvão",
+      TRUE ~ bairro),
+    idade = case_when(
+      D5N == "80 a 89 anos" ~ "80 anos ou mais",
+      D5N == "90 a 99 anos" ~ "80 anos ou mais",
+      D5N == "100 anos ou mais" ~ "80 anos ou mais",
+      TRUE ~ D5N),
+    sexo = case_when(
+      D4N == "Homem" ~ "M",
+      D4N == "Mulher" ~ "F"),
+    ano = D2N, 
+    pop = ifelse(is.na(V), 0 , V)) %>% 
+  select(ano, idade, sexo, bairro, pop) %>% 
+  group_by(ano, bairro, idade, sexo) %>% 
+  summarise_all(sum) %>% ungroup(bairro) %>% 
+  mutate(bairro = stringi::stri_trans_general(toupper(bairro), "Latin-ASCII"))
+
+```
+A tabela abaixo mostra a população recenseada em 2010 para os bairros do Rio de Janeiro, ordenada segundo a população. Nota-se que Campo Grande era o bairro mais populoso do município, com 328.370 habitantes. É de se esperar, portanto, que o bairro seja um dos que apresentam o maior número absoluto de óbitos.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pop_bairro_Rio %>% filter(ano==2010) %>% 
+  group_by(bairro) %>% summarise(pop = sum(pop)) %>% arrange(-pop) %>% head(30) %>% gt()
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# código para aprimorar estimativas de 2020 - utilizando "tabla cuadrada"
+munic_Rio_SIDRA <-
+  get_sidra(x = 1552,period = c("2000", "2010"),classific = c("c2", "c287"),category = list(c(92956, 92957), c(93070,93084,93085,93086,93087,93088,93089,93090,93091,93092,93093,93094,93095,93096,93097,93098,93099,93100,6653)),variable = "93",geo = c("City"),geo.filter = 3304557,header = FALSE,format = 3)
+
+UF_Rio_SIDRA <- 
+  get_sidra(x = 1552,period = c("2000", "2010"),classific = c("c2", "c287"),category = list(c(92956, 92957), c(93070,93084,93085,93086,93087,93088,93089,93090,93091,93092,93093,93094,93095,93096,
+93097,93098,93099,93100,6653)),variable = "93",geo = c("State"),geo.filter = 33,header = FALSE,format = 3)
+
+munic_UF_Rio <- bind_rows(munic_Rio_SIDRA, UF_Rio_SIDRA) %>% 
+  mutate(
+  idade = case_when(
+    D5N == "80 a 89 anos" ~ "80 anos ou mais",
+    D5N == "90 a 99 anos" ~ "80 anos ou mais",
+    D5N == "100 anos ou mais" ~ "80 anos ou mais",
+    TRUE ~ D5N),
+  sexo = case_when(
+    D4N == "Homem" ~ "M",
+    D4N == "Mulher" ~ "F"),
+  ano = D2N, 
+  cod = D1C,
+  pop = ifelse(is.na(V), 0 , V)) %>% 
+  select(ano, idade, sexo, cod, pop) %>% 
+  group_by(ano, cod, idade, sexo) %>% 
+  summarise_all(sum) %>% ungroup(cod) %>% 
+  pivot_wider(names_from = cod, values_from = pop, names_prefix = "cod") %>% 
+  mutate("codinterior" = cod33 - cod3304557) %>% 
+  pivot_longer(cols = c(cod33, cod3304557, codinterior), 
+               names_to = "bairro", values_to = "pop")
+
+bairros_interior <- bind_rows(pop_bairro_Rio, munic_UF_Rio)
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Totais para o estado, com base nos Censos 2000 e 2010 e projeção da população para 2020
+RJ_2000 <- 14391282
+RJ_2010 <- 15989929
+RJ_2020 <- 17366189
+
+#Estima população com base no método AiBi
+tot_pop_bairros <- pop_bairro_Rio %>% group_by(bairro, ano) %>% summarise(pop = sum(pop)) %>% 
+   pivot_wider(names_from = ano, values_from = pop, names_prefix = "censo") 
+
+estima_pop_tot <- tot_pop_bairros %>% 
+  mutate(ai_2020 = (censo2010 - censo2000) / (RJ_2010 - RJ_2000),
+         bi_2020 = censo2000 - ai_2020*RJ_2000,
+         pop2020 = round(ai_2020 * RJ_2020 + bi_2020,0)) %>% ungroup(bairro)
+
+# Confere resultados da soma dos bairros
+estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) %>% 
+  summarise(sum(pop2020)) - 
+  estima_pop_tot %>% filter(bairro == c("cod3304557")) %>% summarise(sum(pop2020))
+
+```
+
+Totais populacionais para os bairros foram estimados para o ano de 2020 usando o método AiBi, técnica utilizada pelo IBGE para realizar [estimativas populacionais municipais](https://www.ibge.gov.br/estatisticas/sociais/populacao/9103-estimativas-de-populacao.html). Considerou-se como populações base os Censos 2000 e 2010 e como estimativa da área maior aquela dada pela [Projeção da População - Revisão 2018](https://www.ibge.gov.br/estatisticas/sociais/populacao/9109-projecao-da-populacao.html?=&t=resultados) estimada pelo IBGE para o estado do Rio de Janeiro. A tabela abaixo mostra as estimativas para 2020 por bairro para os 30 bairro mais populosos em 2020.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) %>%
+  select(bairro, pop2020) %>% arrange(-pop2020) %>% head(30) %>% gt()
+```
+\newpage
+
+## Taxa Bruta de Mortalidade
+
+Ainda que possa haver valor em computar e comparar números absolutos de óbitos, os níveis de mortalidade devem ser medidos com indicadores que considerem a população sob risco. Um óbvio ajuste que precisa ser feito é considerar a população como denominador, calculando Taxas Brutas de Mortalidade (TBM), que são dadas pela razão entre o número de óbitos e a população total: $TBM = \frac{O}{P}$.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# faz merge das duas bases
+base_obitos_pop_tot <- full_join(estima_pop_tot, total_obitos)
+base_obitos_pop_tot <- base_obitos_pop_tot %>% mutate(
+  obitos = ifelse( is.na( obitos ), 0 , obitos),
+  TBM = round(obitos / pop2020 * 100000, 0)) %>% arrange(-TBM)
+TBM_bairros <- base_obitos_pop_tot %>% select(bairro, obitos, pop2020, TBM)
+
+```
+
+A tabela abaixo mostra a Taxa Bruta de Mortalidade (TBM) por COVID-19 para os 30 bairros do Rio de Janeiro que tiveram as mais altas taxas. Os bairros com maiores TBM em `r dados_COVID_Rio %>% select(Data_atualização) %>% filter(row_number()==1)` são 
+`r unlist(TBM_bairros[1,1])`, 
+`r unlist(TBM_bairros[2,1])` e 
+`r unlist(TBM_bairros[3,1])`, com  taxas de 
+`r unlist(TBM_bairros[1,4])`, 
+`r unlist(TBM_bairros[2,4])` e 
+`r unlist(TBM_bairros[3,4])` por 100 mil habitantes, respectivamente.
+Nota-se que alguns bairros listados com altas TBM têm poucos óbitos e, portanto as taxas devem ser interpretadas com cautela, uma vez que estão sujeitas a altas flutuações aleatórias em função dos pequenos números.
+
+Observa-se, também, que Campo Grande, Bangu e Realengo, que estão na lista dos bairros que tiveram o maior número absoluto de óbitos, não figuram entre os que têm maiores TBM, já que são bairros bastante populosos. Copacabana figura entre os bairros com maiores taxas, com TBM = `r unlist(TBM_bairros %>% filter(bairro=="COPACABANA") %>% select(TBM))` por 100 mil habitantes.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# mostra trinta bairro com mais alta TBM
+TBM_bairros %>% head(30) %>% gt()
+```
+
+\newpage
+
+## Taxa Específicas de Mortalidade
+
+Seriam as Taxas Brutas de Mortalidade (TBM) mais altas em bairros envelhecidos em função de suas estruturas etárias? A mortalidde por COVID-19 é mesmo mais alta em Copacabana do que na Rocinha, por exemplo, como apontado pela TBM?
+
+Para responder a estas perguntas, é preciso eliminar os efeitos da estrutura etária no cálculo dos indicadores. Uma das formas de se fazer isso é comparando as Taxas Específicas de Mortalidade por sexo e idade:
+
+$TEM = \frac{O_{i,s}}{P_i{i,s}}$,
+
+onde $O_i$ é o número de óbitos no grupo etário $i$ e sexo $s$ e $P_i$ é a população no mesmo no grupo etário $i$ e sexo $s$.
+
+As estimativas serão atualizadas para considerar estruturas populacionais mais realistas. Como primeira aproximação, adotou-se a estrutura etária observada em 2010 aplicada aos totais populacionais estimados para 2020. Pretende-se utilizar métodos que adotem hipótese mais realistas em futuras atualizações desta nota, mas acredita-se que as panorama geral dos resultados devam se manter.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# faz merge das duas bases de população
+base_pop_idade <- inner_join(pop_bairro_Rio %>% filter(ano==2010), 
+                             estima_pop_tot, by = c("bairro", "bairro")) %>% 
+  select(ano, bairro, sexo, idade, pop, pop2020) %>%
+  group_by(bairro) %>% 
+  mutate(prop_2010 = pop / sum(pop),
+         pop2020bairro = pop2020 * prop_2010) %>% 
+    select(bairro, sexo, idade, pop2020bairro)
+
+obitos_s_idade <- obitos_sexo_idade %>% mutate(
+  idade = case_when(
+    faixa_etária == "De 0 a 9" ~ "0-9",
+    faixa_etária == "De 10 a 19" ~ "10-19",
+    faixa_etária == "De 20 a 29" ~ "20-29",
+    faixa_etária == "De 30 a 39" ~ "30-39",
+    faixa_etária == "De 40 a 49" ~ "40-49",
+    faixa_etária == "De 50 a 59" ~ "50-59",
+    faixa_etária == "De 60 a 69" ~ "60-69",
+    faixa_etária == "De 70 a 79" ~ "70-79",
+    faixa_etária == "De 80 a 89" ~ "80+",
+    faixa_etária == "De 90 a 100" ~ "80+",
+    faixa_etária == "De 100 a 109" ~ "80+",
+    TRUE ~ faixa_etária)) %>% select(-faixa_etária) %>% group_by(bairro, sexo, idade) %>% 
+  summarise(obitos = sum(obitos))
+
+base_pop_idade <- base_pop_idade %>% mutate(
+  idade = case_when(
+    idade == "0 a 4 anos" ~ "0-9", idade == "5 a 9 anos" ~ "0-9",
+    idade == "10 a 14 anos" ~ "10-19", idade == "15 a 19 anos" ~ "10-19",
+    idade == "20 a 24 anos" ~ "20-29", idade == "25 a 29 anos" ~ "20-29",
+    idade == "30 a 34 anos" ~ "30-39", idade == "35 a 39 anos" ~ "30-39",
+    idade == "40 a 44 anos" ~ "40-49", idade == "45 a 49 anos" ~ "40-49",
+    idade == "50 a 54 anos" ~ "50-59", idade == "55 a 59 anos" ~ "50-59",
+    idade == "60 a 64 anos" ~ "60-69", idade == "65 a 69 anos" ~ "60-69",
+    idade == "70 a 74 anos" ~ "70-79", idade == "75 a 79 anos" ~ "70-79",
+    idade == "80 anos ou mais" ~ "80+", 
+    TRUE ~ idade)) %>% 
+  group_by(bairro, sexo, idade) %>% summarise(pop = sum(pop2020bairro))
+
+base_sexo_idade <- full_join(obitos_s_idade, base_pop_idade) %>%
+  mutate(obitos = ifelse( is.na( obitos ), 0 , obitos),
+         pop = ifelse( is.na( pop ), 0 , pop)) %>% 
+  group_by(bairro, sexo, idade) %>% 
+  summarise(obitos = sum(obitos),
+            pop = sum(pop)) %>% 
+  mutate(TEM = obitos / pop)
+
+total_munic <- base_sexo_idade %>% group_by(sexo, idade) %>% 
+  summarise(obitos = sum(obitos),
+            pop = sum(pop)) %>% 
+  mutate(TEM = obitos / pop)
+
+```
+
+O gráfico abaixo mostra as Taxas Específicas de Mortalidade por sexo e idade (em escala logaritmica) para o conjunto do município do Rio de Janeiro, mostrando uma curva de mortalidade aparentemente próxima do que se conhece para a mortalidade total.
+
+```{r echo=FALSE}
+# faz padronização
+ggplot(total_munic, aes(x=idade, y = TEM)) + geom_path(aes(group=sexo, color = sexo )) +
+  geom_point(aes(group=sexo, color = sexo)) +
+  scale_y_log10() +
+  ggtitle("Taxas Mortalidade pela COVID-19 por sexo e grupos de idade, Rio de Janeiro")
+```
+
+\newpage
+\blandscape
+
+O gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escala logarítmica) por sexo e idade a partir dos 30 anos para alguns bairros selecionados.
+
+```{r echo=FALSE, fig.height=6, fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
+# faz padronização
+lista_bairros = c("COPACABANA", "CAMPO GRANDE", "BONSUCESSO", "ROCINHA")
+
+ggplot(base_sexo_idade %>% 
+         filter(bairro %in% lista_bairros,
+                !idade %in% c("0-9", "10-19", "20-29")), aes(x=idade, y = TEM)) +
+  theme_bw()+
+  geom_path(aes(group=sexo, color = sexo )) +
+  geom_point(aes(group=sexo, color = sexo)) +
+  scale_y_log10() +
+  facet_grid(.~bairro) +
+  ggtitle("Taxas Específicas de Mortalidade pela COVID-19 por sexo e grupos de idade e bairro, Rio de Janeiro")+
+  theme(legend.position="bottom")
+```
+
+O gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escala logarítmica) por idade a partir dos 30 anos para os bairros de Copacabana e Rocinha. Nota-se que a mortalidade nos dois bairros é próxima (e relativamente baixa) até os 59 anos, mas significativamente mais alta na Rocinha entre os idosos.
+
+```{r echo=FALSE, fig.height=6, fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+lista_bairros = c("COPACABANA", "ROCINHA")
+base_idade <- base_sexo_idade %>% 
+  group_by(bairro, idade) %>% 
+  summarise(obitos = sum(obitos), pop = sum(pop)) %>% 
+  mutate(TEM = obitos / pop)
+
+ggplot(base_idade %>% 
+         filter(bairro %in% lista_bairros,
+                !idade %in% c("0-9", "10-19", "20-29")), aes(x=idade, y = TEM)) +
+  theme_bw()+
+  geom_path(aes(group=bairro, color = bairro, linetype = bairro )) +
+  geom_point(aes(group=bairro, color = bairro, shape = bairro)) +
+  scale_y_log10() +
+  ggtitle("Taxas Específicas de Mortalidade pela COVID-19 por grupos de idade e bairro, Rio de Janeiro")+
+  theme(legend.position="bottom")
+```
+
+\elandscape
+
+\newpage
+
+## Taxa Bruta de Mortalidade Padronizadas
+
+Uma das desvantagens da Taxas Específicas de Mortalidade (TEM) para comparações dos níveis de mortalidade é que é preciso fazer comparações simultâneas de vários grupos de idade e sexo. 
+
+Um indicador que é capaz de resumir os níveis de mortalidade de diversas populações para fins comparativos é a Taxa Bruta de Mortalidade padronizada, que é um indicador síntese e leva em consideração os diferenciais na estrutura etária.
+
+A Taxa Bruta de Mortalidade padronizada utiliza uma população de referência definida arbitrariamente e a utiliza para estimar qual seria a TBM de cada bairro caso eles tivessem a mesma estrutura etária.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# faz padronização
+
+pop_ref <- base_sexo_idade %>% filter(bairro == "COPACABANA") %>% ungroup(bairro) %>% 
+  mutate(pop_ref = pop) %>% select(sexo, idade, pop_ref)
+
+TEM_pad <- inner_join(base_sexo_idade, pop_ref) %>% 
+  mutate(obitos_pad = TEM * pop_ref)
+
+TBM_pad <- TEM_pad %>% group_by(bairro) %>% 
+  summarise(obitos = sum(obitos),
+    obitos_pad = sum(obitos_pad),
+            pop_ref = sum(pop_ref)) %>% 
+  mutate(TBM_pad = round(obitos_pad / pop_ref * 100000, 0)) %>% 
+  arrange(-TBM_pad) %>% 
+  filter(!bairro %in% c("FORA DO MUNICIPIO", "INDEFINIDO")) %>% 
+select(!c(obitos_pad, pop_ref))
+
+
+# compara.pop <- base_sexo_idade %>% filter(bairro %in% lista_bairros)
+# ggplot(compara.pop, aes(x=idade, y=pop))+
+#   geom_point(aes(group=bairro, color = bairro))+
+#   geom_path(aes(group=bairro, color = bairro, linetype = bairro))+
+#   facet_grid(.~sexo)
+
+```
+
+A tabela abaixo mostra a Taxa Bruta de Mortalidade (TBM) padronizada por COVID-19 para os 30 bairro com mais alta taxa no município do Rio de Janeiro. Os bairros com maiores TBM em `r dados_COVID_Rio %>% select(Data_atualização) %>% filter(row_number()==1)` são 
+`r unlist(TBM_pad[1,1])`, 
+`r unlist(TBM_pad[2,1])` e 
+`r unlist(TBM_pad[3,1])`, com  taxas de 
+`r unlist(TBM_pad[1,3])`, 
+`r unlist(TBM_pad[2,3])` e 
+`r unlist(TBM_pad[3,3])` por 100 mil habitantes, respectivamente.
+Nota-se que alguns bairro listados com altas TBM têm poucos óbitos e, portanto as taxas devem ser interpretadas com cautela, uma vez que estão sujeitas a altas flutuações aleatórias em função dos pequenos números.
+
+Observa-se que os bairros de Campo Grande, Bangu, Realengo, que estão na lista dos que tiveram o maior número absoluto de óbitos, também não figuram na lista dos que têm maior taxa de mortalidade padronizada, já que são bairros bastante populosos. Copacabana também não aparece mais no topo da lista, com $TBM = $`r unlist(TBM_pad %>% filter(bairro=="COPACABANA") %>% select(TBM_pad))` por 100 mil habitantes. Por outro lado, bairros como Rocinha e Cidade de Deus passam a figurar entre aqueles com maior taxa de mortalidade.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# mostra trinta bairro com mais alta TBM
+TBM_pad %>% head(30) %>% gt()
+```
+
+
+<!-- ## Mapas -->
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# mapas
+
+# cria base com os três indicadores
+indicadores <- inner_join(TBM_bairros, TBM_pad)
+
+# Lê arquivo para mapas de setores do município do Rio de Janeiro, segundo a base de 2010
+setorRJ.orig <- read_census_tract(code_tract = 3304557, year = 2010)
+
+setorRJ.orig <- setorRJ.orig %>% mutate(bairro = stringi::stri_trans_general(toupper(name_neighborhood), "Latin-ASCII"))
+
+setorRJ.orig %>% head
+
+setorRJ <-left_join(setorRJ.orig, indicadores, by = c("bairro" = "bairro"))
+
+obitos <- ggplot(data=setorRJ) +
+  geom_sf(aes(fill=log10(obitos)), color= "white", size=.005) +
+  theme_void() +
+  coord_sf() +
+  scale_fill_gradientn(name = "log(TBM)",
+                       colours = c("white","yellow", "gold", "orange", "red", "red4"),
+                       na.value = 'grey95',
+                       breaks=seq(0,5,by=.5),
+                       guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
+  theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "grey70"),
+        panel.background = element_rect(colour = "black", fill = "grey70"),
+        plot.background = element_rect(colour = "black", fill = "grey60"),
+        legend.position="bottom",
+        legend.box="horizontal",
+        legend.title=element_text(size=14), 
+        legend.text=element_text(size=10),
+        plot.title = element_text(hjust = 0.45, vjust=2.12))+
+  ggtitle("Taxa Bruta de Mortalidade por COVID-19 segundo bairro")
+
+mapaTBM <- ggplot(data=setorRJ) +
+  geom_sf(aes(fill=log10(TBM)), color= "white", size=.005) +
+  theme_void() +
+  coord_sf() +
+  scale_fill_gradientn(name = "log(TBM)",
+                       colours = c("white","yellow", "gold", "orange", "red", "red4"),
+                       na.value = 'grey95',
+                       breaks=seq(0,2,by=.5),
+                       guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
+  theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "grey70"),
+        panel.background = element_rect(colour = "black", fill = "grey70"),
+        plot.background = element_rect(colour = "black", fill = "grey60"),
+        legend.position="bottom",
+        legend.box="horizontal",
+        legend.title=element_text(size=14), 
+        legend.text=element_text(size=10),
+        plot.title = element_text(hjust = 0.45, vjust=2.12))+
+  ggtitle("Taxa Bruta de Mortalidade por COVID-19 segundo bairro")
+
+# mapa das taxas padronizadas
+
+mapaTBM_pad <- ggplot(data=setorRJ) +
+  geom_sf(aes(fill=log10(TBM_pad)), color= "white", size=.005) +
+  theme_void() +
+  coord_sf() +
+  scale_fill_gradientn(name = "log(TBM)",
+                       colours = c("white","yellow", "orange", "red", "red4"),
+                       na.value = 'grey95',
+                       breaks=seq(0,3,by=.5),
+                       guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
+  theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "grey70"),
+        panel.background = element_rect(colour = "black", fill = "grey70"),
+        plot.background = element_rect(colour = "black", fill = "grey60"),
+        legend.position="bottom",
+        legend.box="horizontal",
+        legend.title=element_text(size=14), 
+        legend.text=element_text(size=10),
+        plot.title = element_text(hjust = 0.45, vjust=2.12))+
+  ggtitle("Taxa Bruta de Mortalidade padronizada por COVID-19 segundo bairro")
+
+
+```
+
+## Conclusões
+
+Esta nota procurou mostrar que indicadores demográficos mais refinados são capazes de informar melhor sobre os reais níveis de mortalidade, permitindo, assim, comparações mais precisas entre diferentes regiões e grupos populacionais. Os resultados mostram, por exemplo, altos níveis de mortalidade em bairros como a Rocinha, particularmente entre os idosos.
+
+Ainda assim, existem diversas limitações nos indicadores calculados. Inicialmente, há limitações nas estimativas populacionais (o denominador das taxas calculadas), principalmente levando-se em conta que a informação primária mais recente para estes níveis é de 10 anos atrás, do Censo 2010. E mesmo o Censo, como toda pesquisa, tem seus potenciais problemas. Trabalhos futuros podem realizar estimativas populacionais mais fidedignas, particularmente por sexo e grupos de idade.
+
+Além disso, é inevitável a inconsistência entre o numerador e o denominador das taxas calculadas. É conhecido o fenômeno da "invasão de óbitos", em que o falecido é registrado onde recebeu atenção médica e não no seu local de residência. Para análises de níveis intramunicipais, como as realizadas nesta nota, não se sabe se os registros de óbitos contemplam corretamente o bairro de moradia da pessoa falecida. [Há relatos](https://oglobo.globo.com/rio/covid-19-cinco-comunidades-ja-tem-16-mortes-mas-numeros-podem-ser-ainda-maiores-24392978) de moradores que deram entrada em hospitais declarando que moravam em outros bairros.
+
+Ainda em relação às limitações, há que se considerar que existem fortes indícios de que o número de óbitos confirmados por COVID-19 estão subestimados, visto que parte dos óbitos pela doença têm outras causas de morte atribuídas, em função da não realização de testes, entre outras razões. Há suspeitas, ainda, de que a subestimação de casos e óbitos por COVID-19 seja desigual, sendo ainda maior em área mais pobres, como [nas favelas](https://www.terra.com.br/vida-e-estilo/saude/ong-indica-subnotificacao-de-covid-19-em-favelas-do-rj,aea2fcd7c31f55950c17471a794350f7lelod3rb.html)
+
+Finalmente, há que se ressaltar que diferentes áreas geográficas encontram-se em diferentes estágios da epidemia. Portanto, análises transversais, como as realizadas nesta nota, não são capazes de captar toda a complexidade do fenômeno.
+
+Tais análises só foram possíveis devido à disponibilidade dos dados de óbitos por COVID-19 com bom detalhamento, com informação por bairro, sexo e idade. Informações adicionais, como data do óbito, permitiriam análises ainda mais precisas. Espera-se, desta forma, que se reestabeleça as informações sobre o número de óbitos do painel da Prefeitura do Rio na internet, [retirado recentemente](https://g1.globo.com/rj/rio-de-janeiro/noticia/2020/05/22/crivella-tira-informacoes-sobre-obitos-da-covid-19-de-plataforma-online-e-diz-que-protocolo-de-contagem-no-rio-sera-revisto.ghtml), para seguir dando transparência às informações.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+ggplot(filter(dados_COVID_Rio, bairro_resid__estadia %in% c("CAMPO GRANDE","COPACABANA", "BANGU", "IPANEMA", "ROCINHA")), aes(dt_inicio_sintomas, colour = bairro_resid__estadia)) +
+  stat_ecdf(geom = "step")
+
+ggplot(filter(dados_COVID_Rio, bairro_resid__estadia %in% c("CAMPO GRANDE", "IPANEMA")), aes(dt_inicio_sintomas, colour = bairro_resid__estadia)) +
+  stat_ecdf(geom = "step")
+  
+dados_COVID_Rio %>% filter(bairro_resid__estadia == "COPACABANA"  & evolução == "óbito") %>% arrange(dt_inicio_sintomas)
+
+```

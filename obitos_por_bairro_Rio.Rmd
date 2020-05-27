@@ -1,7 +1,9 @@
 ---
 title: "Nota sobre mortalidade pela COVID-19 por bairros no Rio de Janeiro"
 author: "Gabriel Borges"
-date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+date:
+- "Publicado originalmente em 27/05/2020"
+- ". Atualizado em - `r format(Sys.Date(), '%d/%m/%Y')`"
 header-includes:
 - \usepackage{pdflscape}
 - \newcommand{\blandscape}{\begin{landscape}}

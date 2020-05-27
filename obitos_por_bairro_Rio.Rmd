@@ -262,11 +262,11 @@ Seriam as Taxas Brutas de Mortalidade (TBM) mais altas em bairros envelhecidos e
 
 Para responder a estas perguntas, é preciso eliminar os efeitos da estrutura etária no cálculo dos indicadores. Uma das formas de se fazer isso é comparando as Taxas Específicas de Mortalidade por sexo e idade:
 
-$TEM = \frac{O_{i,s}}{P_i{i,s}}$,
+$TEM = \frac{O_{i,s}}{P_{i,s}}$,
 
-onde $O_i$ é o número de óbitos no grupo etário $i$ e sexo $s$ e $P_i$ é a população no mesmo no grupo etário $i$ e sexo $s$.
+onde $O_{i,s}$ é o número de óbitos no grupo etário $i$ e sexo $s$ e $P_{i,s}$ é a população no mesmo no grupo etário $i$ e sexo $s$.
 
-As estimativas serão atualizadas para considerar estruturas populacionais mais realistas. Como primeira aproximação, adotou-se a estrutura etária observada em 2010 aplicada aos totais populacionais estimados para 2020. Pretende-se utilizar métodos que adotem hipótese mais realistas em futuras atualizações desta nota, mas acredita-se que as panorama geral dos resultados devam se manter.
+Como primeira aproximação, estimou-se a população dos bairros por sexo e idade aplicando-se a estrutura etária observada em 2010 aos totais populacionais estimados para 2020. Pretende-se utilizar métodos que adotem hipótese mais realistas em futuras atualizações desta nota, mas acredita-se que o panorama geral dos resultados deva se manter.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # faz merge das duas bases de população
@@ -323,7 +323,7 @@ total_munic <- base_sexo_idade %>% group_by(sexo, idade) %>%
 
 ```
 
-O gráfico abaixo mostra as Taxas Específicas de Mortalidade por sexo e idade (em escala logaritmica) para o conjunto do município do Rio de Janeiro, mostrando uma curva de mortalidade aparentemente próxima do que se conhece para a mortalidade total.
+O gráfico abaixo mostra as Taxas Específicas de Mortalidade por sexo e idade (em escala logarítmica) para o conjunto do município do Rio de Janeiro, mostrando uma curva de mortalidade aparentemente próxima do que se conhece para a mortalidade total.
 
 ```{r echo=FALSE}
 # faz padronização
@@ -354,7 +354,11 @@ ggplot(base_sexo_idade %>%
   theme(legend.position="bottom")
 ```
 
-O gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escala logarítmica) por idade a partir dos 30 anos para os bairros de Copacabana e Rocinha. Nota-se que a mortalidade nos dois bairros é próxima (e relativamente baixa) até os 59 anos, mas significativamente mais alta na Rocinha entre os idosos.
+\elandscape
+
+\newpage
+
+Os gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escalas logarítmica e linear) por idade a partir dos 30 anos para os bairros de Copacabana e Rocinha. Nota-se que a mortalidade nos dois bairros é próxima (e relativamente baixa) até os 59 anos, mas é significativamente mais alta na Rocinha entre os idosos.
 
 ```{r echo=FALSE, fig.height=6, fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -367,21 +371,47 @@ base_idade <- base_sexo_idade %>%
 ggplot(base_idade %>% 
          filter(bairro %in% lista_bairros,
                 !idade %in% c("0-9", "10-19", "20-29")), aes(x=idade, y = TEM)) +
-  theme_bw()+
-  geom_path(aes(group=bairro, color = bairro, linetype = bairro )) +
-  geom_point(aes(group=bairro, color = bairro, shape = bairro)) +
-  scale_y_log10() +
-  ggtitle("Taxas Específicas de Mortalidade pela COVID-19 por grupos de idade e bairro, Rio de Janeiro")+
-  theme(legend.position="bottom")
-```
+  theme_bw(base_size = 12)+
+  geom_path(aes(group=bairro, color = bairro), size=1.3) +
+  geom_point(aes(group=bairro, color = bairro, shape = bairro), size=3) +
+  ggtitle("Taxas Específicas de Mortalidade (escala log) pela COVID-19 por grupos de idade e bairro, Rio de Janeiro")+
+    scale_y_log10() +
+    theme(strip.text.x = element_text(size = 14, colour = "black", face = "bold"),
+        strip.text.y = element_text(size = 14, colour = "black", face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "grey90"),
+        panel.background = element_rect(colour = "black", fill = "grey90"),
+        plot.background = element_rect(colour = "black", fill = "grey80"),
+        legend.position="bottom",
+        legend.box="horizontal",
+        legend.title=element_text(size=0),
+        legend.text=element_text(size=12))
 
-\elandscape
+
+ggplot(base_idade %>% 
+         filter(bairro %in% lista_bairros,
+                !idade %in% c("0-9", "10-19", "20-29")), aes(x=idade, y = TEM)) +
+  theme_bw(base_size = 12)+
+   theme(plot.margin=unit(c(1.5,1,1.5,1),"cm"))+
+  geom_path(aes(group=bairro, color = bairro), size=1.3) +
+  geom_point(aes(group=bairro, color = bairro, shape = bairro), size=3) +
+  ggtitle("Taxas Específicas de Mortalidade pela COVID-19 por grupos de idade e bairro, Rio de Janeiro")+
+    theme(strip.text.x = element_text(size = 14, colour = "black", face = "bold"),
+        strip.text.y = element_text(size = 14, colour = "black", face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "grey90"),
+        panel.background = element_rect(colour = "black", fill = "grey90"),
+        plot.background = element_rect(colour = "black", fill = "grey80"),
+        legend.position="bottom",
+        legend.box="horizontal",
+        legend.title=element_text(size=0),
+        legend.text=element_text(size=12))
+
+```
 
 \newpage
 
 ## Taxa Bruta de Mortalidade Padronizadas
 
-Uma das desvantagens da Taxas Específicas de Mortalidade (TEM) para comparações dos níveis de mortalidade é que é preciso fazer comparações simultâneas de vários grupos de idade e sexo. 
+Uma das desvantagens das Taxas Específicas de Mortalidade (TEM) para comparações dos níveis de mortalidade é que é preciso fazer comparações simultâneas de vários grupos de idade e sexo. 
 
 Um indicador que é capaz de resumir os níveis de mortalidade de diversas populações para fins comparativos é a Taxa Bruta de Mortalidade padronizada, que é um indicador síntese e leva em consideração os diferenciais na estrutura etária.
 
@@ -423,7 +453,7 @@ A tabela abaixo mostra a Taxa Bruta de Mortalidade (TBM) padronizada por COVID-1
 `r unlist(TBM_pad[3,3])` por 100 mil habitantes, respectivamente.
 Nota-se que alguns bairro listados com altas TBM têm poucos óbitos e, portanto as taxas devem ser interpretadas com cautela, uma vez que estão sujeitas a altas flutuações aleatórias em função dos pequenos números.
 
-Observa-se que os bairros de Campo Grande, Bangu, Realengo, que estão na lista dos que tiveram o maior número absoluto de óbitos, também não figuram na lista dos que têm maior taxa de mortalidade padronizada, já que são bairros bastante populosos. Copacabana também não aparece mais no topo da lista, com $TBM = $`r unlist(TBM_pad %>% filter(bairro=="COPACABANA") %>% select(TBM_pad))` por 100 mil habitantes. Por outro lado, bairros como Rocinha e Cidade de Deus passam a figurar entre aqueles com maior taxa de mortalidade.
+Observa-se que os bairros de Campo Grande, Bangu, Realengo, que estão na lista dos que tiveram o maior número absoluto de óbitos, também não figuram na lista dos que têm maior taxa de mortalidade padronizada, já que são bairros bastante populosos. Copacabana (com TBM = `r unlist(TBM_pad %>% filter(bairro=="COPACABANA") %>% select(TBM_pad))` por 100 mil habitantes) também não aparece mais no topo da lista. Por outro lado, bairros como Rocinha e Cidade de Deus passam a figurar entre aqueles com maior taxa de mortalidade quando as taxas são padronizadas pela estrutura etária dos bairros.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 # mostra trinta bairro com mais alta TBM
@@ -513,6 +543,8 @@ mapaTBM_pad <- ggplot(data=setorRJ) +
 
 ```
 
+\newpage
+
 ## Conclusões
 
 Esta nota procurou mostrar que indicadores demográficos mais refinados são capazes de informar melhor sobre os reais níveis de mortalidade, permitindo, assim, comparações mais precisas entre diferentes regiões e grupos populacionais. Os resultados mostram, por exemplo, altos níveis de mortalidade em bairros como a Rocinha, particularmente entre os idosos.
@@ -521,7 +553,7 @@ Ainda assim, existem diversas limitações nos indicadores calculados. Inicialme
 
 Além disso, é inevitável a inconsistência entre o numerador e o denominador das taxas calculadas. É conhecido o fenômeno da "invasão de óbitos", em que o falecido é registrado onde recebeu atenção médica e não no seu local de residência. Para análises de níveis intramunicipais, como as realizadas nesta nota, não se sabe se os registros de óbitos contemplam corretamente o bairro de moradia da pessoa falecida. [Há relatos](https://oglobo.globo.com/rio/covid-19-cinco-comunidades-ja-tem-16-mortes-mas-numeros-podem-ser-ainda-maiores-24392978) de moradores que deram entrada em hospitais declarando que moravam em outros bairros.
 
-Ainda em relação às limitações, há que se considerar que existem fortes indícios de que o número de óbitos confirmados por COVID-19 estão subestimados, visto que parte dos óbitos pela doença têm outras causas de morte atribuídas, em função da não realização de testes, entre outras razões. Há suspeitas, ainda, de que a subestimação de casos e óbitos por COVID-19 seja desigual, sendo ainda maior em área mais pobres, como [nas favelas](https://www.terra.com.br/vida-e-estilo/saude/ong-indica-subnotificacao-de-covid-19-em-favelas-do-rj,aea2fcd7c31f55950c17471a794350f7lelod3rb.html)
+Ainda em relação às limitações, há que se considerar que existem fortes indícios de que o número de óbitos confirmados por COVID-19 estão subestimados, visto que parte dos óbitos pela doença têm outras causas de morte atribuídas, em função da não realização de testes, entre outras razões. Há suspeitas, ainda, de que a subestimação de casos e óbitos por COVID-19 seja desigual, sendo ainda maior em área mais pobres, como [nas favelas](https://www.terra.com.br/vida-e-estilo/saude/ong-indica-subnotificacao-de-covid-19-em-favelas-do-rj,aea2fcd7c31f55950c17471a794350f7lelod3rb.html).
 
 Finalmente, há que se ressaltar que diferentes áreas geográficas encontram-se em diferentes estágios da epidemia. Portanto, análises transversais, como as realizadas nesta nota, não são capazes de captar toda a complexidade do fenômeno.
 

@@ -55,7 +55,7 @@ invisible(lapply(list.of.packages, library, character.only = TRUE))
 # lê base atualizada do site Painel Rio COVID-19
 # dados_COVID_Rio <- read.csv2("http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",encoding = "latin1", sep = ";", stringsAsFactors = F)
 dados_COVID_Rio <- read_csv2(
-  file = "http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",local = locale(encoding = "latin1"),
+  file = "http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid_19.csv",local = locale(encoding = "latin1"),
   col_types = cols(dt_notific = col_date('%d/%m/%Y'),
                    dt_inicio_sintomas = col_date('%d/%m/%Y')))
 

@@ -3,7 +3,7 @@ title: "Nota sobre mortalidade pela COVID-19 por bairros no Rio de Janeiro"
 author: "Gabriel Borges"
 date:
 - "Publicado originalmente em 27/05/2020"
-- ". Atualizado em - `r format(Sys.Date(), '%d/%m/%Y')`"
+- ". Dados atualizados em `r format(Sys.Date(), '%d/%m/%Y')`"
 header-includes:
 - \usepackage{pdflscape}
 - \newcommand{\blandscape}{\begin{landscape}}
@@ -47,7 +47,7 @@ A tabela abaixo ilustra os dados disponíveis mostrando as primeiras linhas da t
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 options(scipen=999)
 # carrega pacotes utilizados
-list.of.packages <- c("tidyverse", "gt", "geobr", "ggsflabel", "knitr", "kableExtra", "sidrar", "mipfp")
+list.of.packages <- c("tidyverse", "gt", "geobr", "ggsflabel", "knitr", "kableExtra", "sidrar")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 invisible(lapply(list.of.packages, library, character.only = TRUE))
@@ -56,8 +56,8 @@ invisible(lapply(list.of.packages, library, character.only = TRUE))
 # dados_COVID_Rio <- read.csv2("http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",encoding = "latin1", sep = ";", stringsAsFactors = F)
 dados_COVID_Rio <- read_csv2(
   file = "http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid_19.csv",local = locale(encoding = "latin1"),
-  col_types = cols(dt_notific = col_date('%d/%m/%Y'),
-                   dt_inicio_sintomas = col_date('%d/%m/%Y')))
+  col_types = cols(dt_notific = col_date('%d/%m/%y'),
+                   dt_inicio_sintomas = col_date('%d/%m/%y')))
 
 # transforma nome dos bairros para ser consistente com base de pessoas
 dados_COVID_Rio <- dados_COVID_Rio %>% mutate(
@@ -77,9 +77,9 @@ dados_COVID_Rio %>% head(20) %>% kableExtra::kable() %>%
 obitos_COVID_Rio <- dados_COVID_Rio %>% filter(evolução=="óbito") %>% 
   # recodifica bairros para ser comparáveis com o Censo 2010
   mutate(bairro = case_when(
-    bairro == "GERICINO" ~ "BANGU",
+    # bairro == "GERICINO" ~ "BANGU",
     bairro == "VILA KENNEDY" ~ "BANGU",
-    bairro == "VASCO DA GAMA" ~ "SAO CRISTOVAO",
+    # bairro == "VASCO DA GAMA" ~ "SAO CRISTOVAO",
     bairro == "FREGUESIA-JPA" ~ "FREGUESIA (JACAREPAGUA)",
     bairro == "FREGUESIA-ILHA" ~ "FREGUESIA (ILHA DO GOVERNADOR)",
     bairro == "LAPA" ~ "CENTRO",
@@ -129,16 +129,16 @@ pop_bairro_Rio_SIDRA <- get_sidra(x = 1552,
           header = FALSE,
           format = 3)
 
-# agrupa idade 80+ e bairros Gericinó e Vasco da Gama, que foram criados entre 2000 e 2010
+# agrupa idade 80+
 pop_bairro_Rio <- pop_bairro_Rio_SIDRA %>% 
   mutate(
     bairro = str_replace(string = D1N,
                          pattern =  " - Rio de Janeiro - RJ", 
                          replacement =  ""),
-    bairro = case_when(
-      bairro == "Gericinó" ~ "Bangu",
-      bairro == "Vasco da Gama" ~ "São Cristóvão",
-      TRUE ~ bairro),
+    # bairro = case_when(
+    #   bairro == "Gericinó" ~ "Bangu",
+    #   bairro == "Vasco da Gama" ~ "São Cristóvão",
+    #   TRUE ~ bairro),
     idade = case_when(
       D5N == "80 a 89 anos" ~ "80 anos ou mais",
       D5N == "90 a 99 anos" ~ "80 anos ou mais",
@@ -206,15 +206,23 @@ RJ_2020 <- 17366189
 tot_pop_bairros <- pop_bairro_Rio %>% group_by(bairro, ano) %>% summarise(pop = sum(pop)) %>% 
    pivot_wider(names_from = ano, values_from = pop, names_prefix = "censo") 
 
+# Estima as populações de GERICINO e VASCO DA GAMA para 2000, proporcionalmente às populações de BANGU e SAO CRISTOVAO
+# Estes foram criados entre 2000 e 2010
+tot_pop_bairros <- tot_pop_bairros %>% ungroup(bairro) %>% mutate(
+    censo2000 = 
+      ifelse(bairro %in% c("GERICINO", "BANGU"),
+             sum(censo2000) * censo2010 / sum(censo2010),
+             ifelse(bairro %in% c("VASCO DA GAMA", "SAO CRISTOVAO"),
+                    sum(censo2000) * censo2010 / sum(censo2010),censo2000))) 
+
 estima_pop_tot <- tot_pop_bairros %>% 
   mutate(ai_2020 = (censo2010 - censo2000) / (RJ_2010 - RJ_2000),
          bi_2020 = censo2000 - ai_2020*RJ_2000,
-         pop2020 = round(ai_2020 * RJ_2020 + bi_2020,0)) %>% ungroup(bairro)
+         pop2020 = round(ai_2020 * RJ_2020 + bi_2020,0))
 
-# Confere resultados da soma dos bairros
-estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) %>% 
-  summarise(sum(pop2020)) - 
-  estima_pop_tot %>% filter(bairro == c("cod3304557")) %>% summarise(sum(pop2020))
+# # Confere resultados da soma dos bairros
+# estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) %>%   summarise(sum(pop2020)) - 
+#   estima_pop_tot %>% filter(bairro == c("cod3304557")) %>% summarise(sum(pop2020))
 
 ```
 
@@ -228,7 +236,7 @@ estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) 
 
 ## Taxa Bruta de Mortalidade
 
-Ainda que possa haver valor em computar e comparar números absolutos de óbitos, os níveis de mortalidade devem ser medidos com indicadores que considerem a população sob risco. Um óbvio ajuste que precisa ser feito é considerar a população como denominador, calculando Taxas Brutas de Mortalidade (TBM), que são dadas pela razão entre o número de óbitos e a população total: $TBM = \frac{O}{P}$.
+Ainda que a prática seja a de divulgar números absolutos de óbitos, especialmente porque são esses os dados brutos levantados, para comparações dos níveis de mortalidade devem ser calculados indicadores que considerem a população sob risco. Um óbvio ajuste que precisa ser feito é considerar a população como denominador, calculando Taxas Brutas de Mortalidade (TBM), que são dadas pela razão entre o número de óbitos e a população total: $TBM = \frac{O}{P}$.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # faz merge das duas bases
@@ -273,7 +281,7 @@ Como primeira aproximação, estimou-se a população dos bairros por sexo e ida
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # faz merge das duas bases de população
 base_pop_idade <- inner_join(pop_bairro_Rio %>% filter(ano==2010), 
-                             estima_pop_tot, by = c("bairro", "bairro")) %>% 
+                             estima_pop_tot, by = c("bairro")) %>% 
   select(ano, bairro, sexo, idade, pop, pop2020) %>%
   group_by(bairro) %>% 
   mutate(prop_2010 = pop / sum(pop),
@@ -480,14 +488,14 @@ setorRJ.orig %>% head
 
 setorRJ <-left_join(setorRJ.orig, indicadores, by = c("bairro" = "bairro"))
 
-obitos <- ggplot(data=setorRJ) +
-  geom_sf(aes(fill=log10(obitos)), color= "white", size=.005) +
+mapaobitos <- ggplot(data=setorRJ) +
+  geom_sf(aes(fill=(obitos)), color= "white", size=.005) +
   theme_void() +
   coord_sf() +
-  scale_fill_gradientn(name = "log(TBM)",
-                       colours = c("white","yellow", "gold", "orange", "red", "red4"),
+  scale_fill_gradientn(name = "óbitos",
+                       colours = c("yellow","red", "red2", "red4"),
                        na.value = 'grey95',
-                       breaks=seq(0,5,by=.5),
+                       breaks=seq(0,200,by=50),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -498,16 +506,16 @@ obitos <- ggplot(data=setorRJ) +
         legend.title=element_text(size=14), 
         legend.text=element_text(size=10),
         plot.title = element_text(hjust = 0.45, vjust=2.12))+
-  ggtitle("Taxa Bruta de Mortalidade por COVID-19 segundo bairro")
+  ggtitle("Número de óbitos por COVID-19 segundo bairro")
 
 mapaTBM <- ggplot(data=setorRJ) +
-  geom_sf(aes(fill=log10(TBM)), color= "white", size=.005) +
+  geom_sf(aes(fill=(TBM)), color= "white", size=.005) +
   theme_void() +
   coord_sf() +
-  scale_fill_gradientn(name = "log(TBM)",
-                       colours = c("white","yellow", "gold", "orange", "red", "red4"),
+  scale_fill_gradientn(name = "TBM",
+                       colours = c("yellow","red", "red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,2,by=.5),
+                       breaks=seq(0,300,by=100),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -523,13 +531,13 @@ mapaTBM <- ggplot(data=setorRJ) +
 # mapa das taxas padronizadas
 
 mapaTBM_pad <- ggplot(data=setorRJ) +
-  geom_sf(aes(fill=log10(TBM_pad)), color= "white", size=.005) +
+  geom_sf(aes(fill=(TBM_pad)), color= "white", size=.005) +
   theme_void() +
   coord_sf() +
-  scale_fill_gradientn(name = "log(TBM)",
-                       colours = c("white","yellow", "orange", "red", "red4"),
+  scale_fill_gradientn(name = "TBM pad",
+                       colours = c("yellow","red", "red1","red2", "red3" ,"red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,3,by=.5),
+                       breaks=seq(0,2000,by=500),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -542,8 +550,21 @@ mapaTBM_pad <- ggplot(data=setorRJ) +
         plot.title = element_text(hjust = 0.45, vjust=2.12))+
   ggtitle("Taxa Bruta de Mortalidade padronizada por COVID-19 segundo bairro")
 
-
 ```
+
+
+<!-- \newpage -->
+
+<!-- Os mapas abaixo mostram -->
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# mostra mapas
+
+mapaobitos 
+mapaTBM
+mapaTBM_pad 
+```
+
 
 \newpage
 

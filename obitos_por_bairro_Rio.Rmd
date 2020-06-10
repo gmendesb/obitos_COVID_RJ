@@ -23,7 +23,7 @@ geometry: margin=1in
 O objetivo desta nota é calcular e discutir brevemente indicadores de mortalidade por COVID-19 para os bairros do Rio de Janeiro.
 Os números de morte por COVID-19 por bairro têm sido utilizados para caracterizar a pandemia em diferentes regiões da cidade. Discute-se, por exemplo, as razões pelas quais Copacabana e Campo Grande estariam entre os bairros com mais mortes atribuídas à COVID-19. Ver, por exemplo, reportagens publicadas [aqui](https://oglobo.globo.com/rio/apesar-da-alta-de-casos-mortes-copacabana-campo-grande-parecem-ignorar-realidade-24419763) e [aqui](https://noticias.uol.com.br/saude/ultimas-noticias/redacao/2020/05/10/perto-do-lockdown-copacabana-se-torna-o-bairro-do-rj-com-mais-mortes.htm).
 
-Por que bairros como Copacabana e Campo Grande são os que apresentam os mais altos números de óbito por COVID-19? A mortalidade nesses bairros seria realmente mais alta que em outras regiões do município? Ou seria porque estes são bairros mais populosos? Ou ainda porque têm uma maior concentração de idosos em suas populações? As análises nessa nota tentam responder tais perguntas.
+Por que bairros como Copacabana e Campo Grande estão entre os que apresentam os mais altos números de óbito por COVID-19? A mortalidade nesses bairros seria realmente mais alta que em outras regiões do município? Ou seria porque estes são bairros mais populosos? Ou ainda porque têm uma maior concentração de idosos em suas populações? As análises nessa nota tentam responder tais perguntas.
 
 # Dados
 
@@ -236,7 +236,7 @@ estima_pop_tot %>% filter(!bairro %in% c("cod33", "cod3304557", "codinterior")) 
 
 ## Taxa Bruta de Mortalidade
 
-Ainda que a prática seja a de divulgar números absolutos de óbitos, especialmente porque são esses os dados brutos levantados, para comparações dos níveis de mortalidade devem ser calculados indicadores que considerem a população sob risco. Um óbvio ajuste que precisa ser feito é considerar a população como denominador, calculando Taxas Brutas de Mortalidade (TBM), que são dadas pela razão entre o número de óbitos e a população total: $TBM = \frac{O}{P}$.
+Ainda que a prática seja a de divulgar números absolutos de óbitos, especialmente porque são esses os dados brutos levantados, para comparações dos níveis de mortalidade devem ser calculados indicadores que considerem a população sob risco. Um óbvio ajuste que precisa ser feito é considerar a população como denominador, calculando Taxas Brutas de Mortalidade (TBM), que são dadas pela razão entre o número de óbitos e a população total: $TBM = \frac{O}{P} \times 100.000$.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # faz merge das duas bases
@@ -272,7 +272,7 @@ Seriam as Taxas Brutas de Mortalidade (TBM) mais altas em bairros envelhecidos e
 
 Para responder a estas perguntas, é preciso eliminar os efeitos da estrutura etária no cálculo dos indicadores. Uma das formas de se fazer isso é comparando as Taxas Específicas de Mortalidade por sexo e idade:
 
-$TEM = \frac{O_{i,s}}{P_{i,s}}$,
+$TEM_{i,s} = \frac{O_{i,s}}{P_{i,s}}$,
 
 onde $O_{i,s}$ é o número de óbitos no grupo etário $i$ e sexo $s$ e $P_{i,s}$ é a população no mesmo no grupo etário $i$ e sexo $s$.
 
@@ -420,7 +420,7 @@ ggplot(base_idade %>%
 
 \newpage
 
-## Taxa Bruta de Mortalidade Padronizadas
+## Taxa Bruta de Mortalidade Padronizada
 
 Uma das desvantagens das Taxas Específicas de Mortalidade (TEM) para comparações dos níveis de mortalidade é que é preciso fazer comparações simultâneas de vários grupos de idade e sexo. 
 
@@ -513,7 +513,7 @@ mapaTBM <- ggplot(data=setorRJ) +
   geom_sf(aes(fill=(TBM)), color= "white", size=.005) +
   theme_void() +
   coord_sf() +
-  scale_fill_gradientn(name = "TBM",
+  scale_fill_gradientn(name = "TBM (por 100 mil)",
                        colours = c("yellow","red", "red4", "salmon4"),
                        na.value = 'grey95',
                        breaks=seq(0,300,by=100),

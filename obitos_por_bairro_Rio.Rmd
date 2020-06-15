@@ -29,15 +29,15 @@ Por que bairros como Copacabana e Campo Grande estão entre os que apresentam os
 
 ## Base de Dados sobre casos de COVID-19
 
-O [Painel Rio COVID-19](https://experience.arcgis.com/experience/38efc69787a346959c931568bd9e2cc4) apresenta o resumo do número de casos confirmados, óbitos, entre outras informações, bem como a opção de download dos microdados[^1]. Esta é uma importante iniciativa, já que permite o estudo da epidemia via informações bastante detalhadas, e espera-se que seja mantida e aprimorada.
+O [Painel Rio COVID-19](https://experience.arcgis.com/experience/38efc69787a346959c931568bd9e2cc4) apresenta o resumo do número de casos confirmados, óbitos, entre outras informações, bem como a opção de download dos microdados. Esta é uma importante iniciativa, já que permite o estudo da epidemia via informações bastante detalhadas, e espera-se que seja mantida e aprimorada.
 
-[^1]: [O número de óbitos deixou de aparecer no painel na dia 18/05/2020](https://oglobo.globo.com/rio/prefeitura-do-rio-tira-do-ar-dados-abertos-sobre-mortos-pela-covid-19-no-municipio-24434182), sob a justificativa que que está havendo uma [mudança metodológica](https://valor.globo.com/brasil/noticia/2020/05/25/rio-muda-metodologia-de-divulgacao-de-mortes-por-covid-19.ghtml) na classificação dos óbitos. Ainda assim, foi possível extrair tais informações via microdados até o dia 24/05/2020.
+Os microdados contêm dados individuais dos casos confirmados de COVID-19 no município do Rio de Janeiro, com informações relevantes, como bairro de residência ou estadia do paciente, seu sexo, faixa etária e evolução do caso (ativo, óbito ou recuperado)[^1].
 
-Os microdados contêm dados individuais dos casos confirmados de COVID-19 no município do Rio de Janeiro, com informações relevantes, como bairro de residência ou estadia do paciente, seu sexo, faixa etária e evolução do caso (ativo, óbito ou recuperado).
+[^1]: Atualização de 15/06/2020: a base passa a incorporar também as variáveis "data do óbito" e "cor ou raça".
 
 Esta nota avalia a mortalidade por COVID-19 e, portanto, utiliza os casos que evoluíram para óbito.
 
-Com o objetivo de permitir a reprodutibilidade dos resultados, todos os códigos utilizados para produzir os resultados desta nota estão também disponíveis. Espera-se que isso também ajude outros pesquisadores que pretendam usar as mesmas bases de dados.
+Com o objetivo de permitir a reprodutibilidade dos resultados, todos os códigos utilizados para produzir os resultados desta nota estão disponíveis [aqui]( https://github.com/gmendesb/obitos_COVID_RJ/blob/master/obitos_por_bairro_Rio.Rmd). Espera-se que isso também ajude outros pesquisadores que pretendam usar as mesmas bases de dados.
 
 \newpage
 \blandscape
@@ -52,12 +52,12 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 invisible(lapply(list.of.packages, library, character.only = TRUE))
 
-# lê base atualizada do site Painel Rio COVID-19
-# dados_COVID_Rio <- read.csv2("http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid19.csv",encoding = "latin1", sep = ";", stringsAsFactors = F)
 dados_COVID_Rio <- read_csv2(
-  file = "http://monitoramento.subpav.rio/COVID19/dados_abertos/Dados_indiv_MRJ_covid_19.csv",local = locale(encoding = "latin1"),
-  col_types = cols(dt_notific = col_date('%d/%m/%y'),
-                   dt_inicio_sintomas = col_date('%d/%m/%y')))
+  file = "https://pcrj.maps.arcgis.com/sharing/rest/content/items/754cc0698129404ba8bfb053cbdbd158/data",
+  local = locale(encoding = "latin1"),
+  col_types = cols(dt_notific = col_date('%d/%m/%Y'),
+                   dt_inicio_sintomas = col_date('%d/%m/%Y'),
+                   dt_óbito = col_date('%d/%m/%Y')))
 
 # transforma nome dos bairros para ser consistente com base de pessoas
 dados_COVID_Rio <- dados_COVID_Rio %>% mutate(
@@ -621,7 +621,7 @@ Ainda em relação às limitações, há que se considerar que existem fortes in
 
 Finalmente, há que se ressaltar que diferentes áreas geográficas encontram-se em diferentes estágios da epidemia. Portanto, análises transversais, como as realizadas nesta nota, não são capazes de captar toda a complexidade do fenômeno.
 
-Tais análises só foram possíveis devido à disponibilidade dos dados de óbitos por COVID-19 com bom detalhamento, com informação por bairro, sexo e idade. Informações adicionais, como data do óbito, permitiriam análises ainda mais precisas. Espera-se, desta forma, que se reestabeleça as informações sobre o número de óbitos do painel da Prefeitura do Rio na internet, [retirado recentemente](https://g1.globo.com/rj/rio-de-janeiro/noticia/2020/05/22/crivella-tira-informacoes-sobre-obitos-da-covid-19-de-plataforma-online-e-diz-que-protocolo-de-contagem-no-rio-sera-revisto.ghtml), para seguir dando transparência às informações.
+Tais análises só foram possíveis devido à disponibilidade dos dados de óbitos por COVID-19 com bom detalhamento, com informação por bairro, sexo e idade. 
 
 ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 

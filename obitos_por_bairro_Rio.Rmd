@@ -577,7 +577,7 @@ O mapa abaixo mostra a Taxa Bruta de Mortalidade padronizada por COVID-19 segund
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # mapa das taxas padronizadas com label para alguns bairros selecionados
-dataplot <- setorRJ %>% filter((obitos>=20 & TBM_pad>160)|(obitos>=10 & TBM_pad>200)) %>% 
+dataplot <- setorRJ %>% filter((obitos>=20 & TBM_pad>200)|(obitos>=15 & TBM_pad>220)) %>% 
   group_by(bairro) %>% filter(row_number()==1) %>% ungroup()
 
 mapa_label <- ggplot(data=setorRJ) +

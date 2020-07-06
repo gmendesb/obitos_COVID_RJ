@@ -496,7 +496,7 @@ mapaobitos <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "óbitos",
                        colours = c("yellow","red", "red2", "red4"),
                        na.value = 'grey95',
-                       breaks=seq(0,200,by=50),
+                       breaks=seq(0,400,by=100),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -516,7 +516,7 @@ mapaTBM <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "TBM (por 100 mil)",
                        colours = c("yellow","red", "red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,300,by=100),
+                       breaks=seq(0,750,by=150),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -538,7 +538,7 @@ mapaTBM_pad <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "TBM padronizada",
                        colours = c("yellow","red", "red1","red2", "red3" ,"red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,2000,by=500),
+                       breaks=seq(0,2500,by=500),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -577,7 +577,7 @@ O mapa abaixo mostra a Taxa Bruta de Mortalidade padronizada por COVID-19 segund
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # mapa das taxas padronizadas com label para alguns bairros selecionados
-dataplot <- setorRJ %>% filter((obitos>=20 & TBM_pad>200)|(obitos>=15 & TBM_pad>220)) %>% 
+dataplot <- setorRJ %>% filter((obitos>=25 & TBM_pad>250)|(obitos>=20 & TBM_pad>300)) %>% 
   group_by(bairro) %>% filter(row_number()==1) %>% ungroup()
 
 mapa_label <- ggplot(data=setorRJ) +
@@ -589,7 +589,7 @@ mapa_label <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "TBM padronizada",
                        colours = c("yellow","red", "red1","red2", "red3" ,"red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,2000,by=500),
+                       breaks=seq(0,2500,by=500),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),

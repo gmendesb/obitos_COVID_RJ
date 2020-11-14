@@ -2,8 +2,7 @@
 title: "Nota sobre mortalidade pela COVID-19 por bairros no Rio de Janeiro"
 author: "Gabriel Borges"
 date:
-- "Publicado originalmente em 27/05/2020"
-- ". Dados atualizados em `r format(Sys.Date(), '%d/%m/%Y')`"
+- "Publicado originalmente em 27/05/2020. Dados atualizados em `r format(Sys.Date(), '%d/%m/%Y')`"
 header-includes:
 - \usepackage{pdflscape}
 - \newcommand{\blandscape}{\begin{landscape}}
@@ -42,15 +41,18 @@ Com o objetivo de permitir a reprodutibilidade dos resultados, todos os códigos
 \newpage
 \blandscape
 
-A tabela abaixo ilustra os dados disponíveis mostrando as primeiras linhas da tabela de microdados.
+A tabela abaixo ilustra os dados disponíveis mostrando 30 linhas da tabela de microdados.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 options(scipen=999)
 # carrega pacotes utilizados
-list.of.packages <- c("tidyverse", "gt", "geobr", "ggsflabel", "knitr", "kableExtra", "sidrar")
+list.of.packages <- c("tidyverse", "gt", "geobr", "knitr", "kableExtra", "sidrar", "devtools")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 invisible(lapply(list.of.packages, library, character.only = TRUE))
+# se não tiver o pacate ggsflabel instalado, rodar:
+# devtools::install_github("yutannihilation/ggsflabel")
+library(ggsflabel)
 
 dados_COVID_Rio <- read_csv2(
   file = "https://pcrj.maps.arcgis.com/sharing/rest/content/items/754cc0698129404ba8bfb053cbdbd158/data",
@@ -64,7 +66,7 @@ dados_COVID_Rio <- dados_COVID_Rio %>% mutate(
   bairro = stringi::stri_trans_general(toupper(bairro_resid__estadia), "Latin-ASCII"))
 
 #mostra as primeira linhas da tabela
-dados_COVID_Rio %>% head(20) %>% kableExtra::kable() %>% 
+dados_COVID_Rio %>% sample_n(30) %>% kableExtra::kable() %>% 
     kable_styling(latex_options="scale_down")
 
 ```
@@ -268,7 +270,7 @@ TBM_bairros %>% head(30) %>% gt()
 
 ## Taxa Específicas de Mortalidade
 
-Seriam as Taxas Brutas de Mortalidade (TBM) mais altas em bairros envelhecidos em função de suas estruturas etárias? A mortalidde por COVID-19 é mesmo mais alta em Copacabana do que na Rocinha, por exemplo, como apontado pela TBM?
+Seriam as Taxas Brutas de Mortalidade (TBM) mais altas em bairros envelhecidos em função de suas estruturas etárias? A mortalidde por COVID-19 é mesmo mais alta em Copacabana do que na Cidade de Deus, por exemplo, como apontado pela TBM?
 
 Para responder a estas perguntas, é preciso eliminar os efeitos da estrutura etária no cálculo dos indicadores. Uma das formas de se fazer isso é comparando as Taxas Específicas de Mortalidade por sexo e idade:
 
@@ -351,7 +353,7 @@ O gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escala logarí
 
 ```{r echo=FALSE, fig.height=6, fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
 # faz padronização
-lista_bairros = c("COPACABANA", "CAMPO GRANDE", "BONSUCESSO", "ROCINHA")
+lista_bairros = c("COPACABANA", "CAMPO GRANDE", "BONSUCESSO", "CIDADE DE DEUS")
 
 ggplot(base_sexo_idade %>% 
          filter(bairro %in% lista_bairros,
@@ -369,11 +371,11 @@ ggplot(base_sexo_idade %>%
 
 \newpage
 
-Os gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escalas logarítmica e linear) por idade a partir dos 30 anos para os bairros de Copacabana e Rocinha. Nota-se que a mortalidade nos dois bairros é próxima (e relativamente baixa) até os 59 anos, mas é significativamente mais alta na Rocinha entre os idosos.
+Os gráfico abaixo mostra as Taxas Específicas de Mortalidade (em escalas logarítmica e linear) por idade a partir dos 30 anos para os bairros de Copacabana e Cidade de Deus. Nota-se que a mortalidade na Cidade de Deus é maior que em Copacabana em todas as idades.
 
 ```{r echo=FALSE, fig.height=6, fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-lista_bairros = c("COPACABANA", "ROCINHA")
+lista_bairros = c("COPACABANA", "CIDADE DE DEUS")
 base_idade <- base_sexo_idade %>% 
   group_by(bairro, idade) %>% 
   summarise(obitos = sum(obitos), pop = sum(pop)) %>% 
@@ -464,7 +466,7 @@ A tabela abaixo mostra a Taxa Bruta de Mortalidade (TBM) padronizada por COVID-1
 `r unlist(TBM_pad[3,3])` por 100 mil habitantes, respectivamente.
 Nota-se que alguns bairro listados com altas TBM têm poucos óbitos e, portanto as taxas devem ser interpretadas com cautela, uma vez que estão sujeitas a altas flutuações aleatórias em função dos pequenos números.
 
-Observa-se que os bairros de Campo Grande, Bangu, Realengo, que estão na lista dos que tiveram o maior número absoluto de óbitos, também não figuram na lista dos que têm maior taxa de mortalidade padronizada, já que são bairros bastante populosos. Copacabana (com TBM = `r unlist(TBM_pad %>% filter(bairro=="COPACABANA") %>% select(TBM_pad))` por 100 mil habitantes) também não aparece mais no topo da lista. Por outro lado, bairros como Rocinha e Cidade de Deus passam a figurar entre aqueles com maior taxa de mortalidade quando as taxas são padronizadas pela estrutura etária dos bairros.
+Observa-se que os bairros de Campo Grande e Realengo, que estão na lista dos que tiveram o maior número absoluto de óbitos, também não figuram na lista dos que têm maior taxa de mortalidade padronizada, já que são bairros bastante populosos. Copacabana (com TBM = `r unlist(TBM_pad %>% filter(bairro=="COPACABANA") %>% select(TBM_pad))` por 100 mil habitantes) também não aparece mais no topo da lista. Por outro lado, bairros como Vidigal e Cidade de Deus passam a figurar entre aqueles com maior taxa de mortalidade quando as taxas são padronizadas pela estrutura etária dos bairros.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 # mostra trinta bairro com mais alta TBM
@@ -478,7 +480,10 @@ TBM_pad %>% head(30) %>% gt()
 # mapas
 
 # cria base com os três indicadores
-indicadores <- inner_join(TBM_bairros, TBM_pad)
+indicadores_sem_filtro <- inner_join(TBM_bairros, TBM_pad)
+
+#filtra somente bairros com 10 ou mais óbitos 
+indicadores <- indicadores_sem_filtro %>% filter(obitos>=10)
 
 # Lê arquivo para mapas de setores do município do Rio de Janeiro, segundo a base de 2010
 setorRJ.orig <- read_census_tract(code_tract = 3304557, year = 2010)
@@ -496,7 +501,7 @@ mapaobitos <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "óbitos",
                        colours = c("yellow","red", "red2", "red4"),
                        na.value = 'grey95',
-                       breaks=seq(0,400,by=100),
+                       breaks=seq(100,1000,by=200),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -538,7 +543,7 @@ mapaTBM_pad <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "TBM padronizada",
                        colours = c("yellow","red", "red1","red2", "red3" ,"red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,2500,by=500),
+                       breaks=seq(0,2500,by=800),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -577,7 +582,7 @@ O mapa abaixo mostra a Taxa Bruta de Mortalidade padronizada por COVID-19 segund
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # mapa das taxas padronizadas com label para alguns bairros selecionados
-dataplot <- setorRJ %>% filter((obitos>=25 & TBM_pad>250)|(obitos>=20 & TBM_pad>300)) %>% 
+dataplot <- setorRJ %>% filter((obitos>=80 & TBM_pad>450)|(obitos>=15 & TBM_pad>600)) %>% 
   group_by(bairro) %>% filter(row_number()==1) %>% ungroup()
 
 mapa_label <- ggplot(data=setorRJ) +
@@ -589,7 +594,7 @@ mapa_label <- ggplot(data=setorRJ) +
   scale_fill_gradientn(name = "TBM padronizada",
                        colours = c("yellow","red", "red1","red2", "red3" ,"red4", "salmon4"),
                        na.value = 'grey95',
-                       breaks=seq(0,2500,by=500),
+                       breaks=seq(0,2500,by=800),
                        guide = guide_colourbar(title.position = "top", title.hjust = 1)) +
   theme(strip.text.x = element_text(size = 12, colour = "black", face = "bold"),
         strip.background = element_rect(colour = "black", fill = "grey70"),
@@ -611,7 +616,7 @@ ggsave("mapaTBM_pad_label.jpeg", mapa_label , width = 13, height = 8)
 
 ## Conclusões
 
-Esta nota procurou mostrar que indicadores demográficos mais refinados são capazes de informar melhor sobre os reais níveis de mortalidade, permitindo, assim, comparações mais precisas entre diferentes regiões e grupos populacionais. Os resultados mostram, por exemplo, altos níveis de mortalidade em bairros como a Rocinha, particularmente entre os idosos.
+Esta nota procurou mostrar que indicadores demográficos mais refinados são capazes de informar melhor sobre os reais níveis de mortalidade, permitindo, assim, comparações mais precisas entre diferentes regiões e grupos populacionais. Os resultados mostram, por exemplo, altos níveis de mortalidade em bairros como a Cidade de Deus, particularmente entre os idosos.
 
 Ainda assim, existem diversas limitações nos indicadores calculados. Inicialmente, há limitações nas estimativas populacionais (o denominador das taxas calculadas), principalmente levando-se em conta que a informação primária mais recente para estes níveis é de 10 anos atrás, do Censo 2010. E mesmo o Censo, como toda pesquisa, tem seus potenciais problemas. Trabalhos futuros podem realizar estimativas populacionais mais fidedignas, particularmente por sexo e grupos de idade.
 
